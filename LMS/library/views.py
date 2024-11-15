@@ -87,17 +87,81 @@ def edit_student_data(request,roll):
 def edit_book_data(request,id):
     return HttpResponse(f"<label>A book with ID: {id} could not be edited...</label><h2>The feature is comming soon</h2>")
 
-def delete_student(request,roll):
-    return HttpResponse(f"<h2>Delete Student</h2><label>Student with Roll Number: {roll} could not be deleted...</label><h2>The feature is comming soon</h2>")
-    pass
+def delete_student(request, roll):
+    try:
+        student_to_delete = Students.objects.get(roll_number=roll)
+        student_to_delete.delete()
+        return redirect('/show_students')
+    except Students.DoesNotExist:
+        return HttpResponse(f"<h2>Delete Student</h2><label>No student found with Roll Number: {roll}.</label>")
+    except Exception as e:
+        return HttpResponse(f"<h2>Error</h2><label>{str(e)}</label>")
 
-def delete_book(request,id):
-    return HttpResponse(f"<h2>Delete Book</h2><label>Book with ID: {id} could not be deleted..</label><h2>The feature is comming soon</h2>")
+# def delete_student(request, roll):
+#     try:
+#         if request.method == "POST":
+#             student_to_delete = Students.objects.get(roll_number=roll)
+#             student_to_delete.delete()
+#             return redirect('/show_students')
+#         else:
+#             return redirect(f'/confirm_delete_student/{roll}')
+#     except Students.DoesNotExist:
+#         return HttpResponse(f"<h2>Error</h2><label>No student found with Roll Number: {roll}.</label>")
+#     except Exception as e:
+#         return HttpResponse(f"<h2>Error</h2><label>{str(e)}</label>")
 
-def return_issued_book(request,id):   
-    obj=Book_Issue.objects.get(id=id)
-    return HttpResponse(f"<h2>Return Issued Book</h2><label>Book <i>{obj.book_instance.book.book_title}</i> issued to <i>{obj.student.fullname}</i> could not be returned..</label><h2>The feature is comming soon</h2>")
+# def confirm_delete_student(request, roll):
+#     try:
+#         student = Students.objects.get(roll_number=roll)
+#         return render(request, 'confirm_delete_student.html', {'student': student})
+#     except Students.DoesNotExist:
+#         return HttpResponse(f"<h2>Error</h2><label>No student found with Roll Number: {roll}.</label>")
+#     except Exception as e:
+#         return HttpResponse(f"<h2>Error</h2><label>{str(e)}</label>")
+
+
+
+def delete_book(request, id):
+    try:
+        book = Book.objects.get(id=id)
+        book.delete()
+        return redirect('/view_books')
+    except Book.DoesNotExist:
+        return HttpResponse(f"<h2>Delete Book</h2><label>Book with ID: {id} does not exist.</label>")
+    except Exception as e:
+        return HttpResponse(f"<h2>Error</h2><label>{str(e)}</label>")
+
+def return_issued_book(request, id):   
+    try:
+        issue_record = Book_Issue.objects.get(id=id)
+        book_instance = issue_record.book_instance
+        # Mark book instance as not borrowed
+        book_instance.Is_borrowed = False
+        book_instance.save()
+
+        # Delete the issue record
+        issue_record.delete()
+
+        return redirect('/view_books_issued')
+    except Book_Issue.DoesNotExist:
+        return HttpResponse(f"<h2>Return Issued Book</h2><label>No issued record found with ID: {id}.</label>")
+    except Exception as e:
+        return HttpResponse(f"<h2>Error</h2><label>{str(e)}</label>")
 
 def edit_issued(request, id):
-    obj=Book_Issue.objects.get(id=id)
-    return HttpResponse(f"<h2>Edit Issued Book</h2><label>Book <i>{obj.book_instance.book.book_title}</i> issued to <i>{obj.student.fullname}</i> could not be edited..</label><h2>The feature is comming soon</h2>")
+    try:
+        issue_record = Book_Issue.objects.get(id=id)
+
+        if request.method == "POST":
+            form = Book_IssueForm(request.POST, instance=issue_record)
+            if form.is_valid():
+                form.save()
+                return redirect('/view_books_issued')
+        else:
+            form = Book_IssueForm(instance=issue_record)
+
+        return render(request, 'edit_issued_book.html', {'form': form})
+    except Book_Issue.DoesNotExist:
+        return HttpResponse(f"<h2>Edit Issued Book</h2><label>No issued record found with ID: {id}.</label>")
+    except Exception as e:
+        return HttpResponse(f"<h2>Error</h2><label>{str(e)}</label>")
